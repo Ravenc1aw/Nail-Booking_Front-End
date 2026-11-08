@@ -1,102 +1,139 @@
-  // ── Hamburger menu ──
-  const navToggle = document.getElementById("navToggle");
-  const navLinks = document.getElementById("navLinks");
-  navToggle.addEventListener("click", () => {
-    navToggle.classList.toggle("open");
-    navLinks.classList.toggle("open");
+// ── Hamburger menu ──
+const navToggle = document.getElementById("navToggle");
+const navLinks = document.getElementById("navLinks");
+
+navToggle.addEventListener("click", () => {
+  navToggle.classList.toggle("open");
+  navLinks.classList.toggle("open");
+});
+
+// Close menu when a link is tapped
+navLinks.querySelectorAll("a").forEach((a) => {
+  a.addEventListener("click", () => {
+    navToggle.classList.remove("open");
+    navLinks.classList.remove("open");
   });
-  // Close menu when a link is tapped
-  navLinks.querySelectorAll("a").forEach((a) => {
-    a.addEventListener("click", () => {
-      navToggle.classList.remove("open");
-      navLinks.classList.remove("open");
+});
+
+// ── Nav scroll effect ──
+const navbar = document.getElementById("navbar");
+window.addEventListener("scroll", () => {
+  navbar.classList.toggle("scrolled", window.scrollY > 60);
+});
+
+// ── Active nav link on scroll ──
+const sections = document.querySelectorAll("section[id]");
+const navAnchors = document.querySelectorAll(".nav-links a:not(.nav-btn)");
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        navAnchors.forEach((a) => {
+          a.classList.toggle(
+            "active",
+            a.getAttribute("href") === "#" + e.target.id
+          );
+        });
+      }
     });
-  });
+  },
+  { threshold: 0.4 }
+);
+sections.forEach((s) => observer.observe(s));
 
-  // ── Nav scroll effect ──
-  const navbar = document.getElementById("navbar");
-  window.addEventListener("scroll", () => {
-    navbar.classList.toggle("scrolled", window.scrollY > 60);
-  });
+// ── Booking: time slots follow opening hours ──
+// Mon–Sat 10am–8pm, Sun 11am–6pm (last appointment starts one hour before closing)
+const bookDate = document.getElementById("bookDate");
+const bookTime = document.getElementById("bookTime");
 
-  // ── Slideshow ──
-  const track = document.getElementById("slidesTrack");
-  const dots = document.querySelectorAll(".dot");
-  let current = 0;
-  const total = 3;
+function formatHour(h) {
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:00 ${suffix}`;
+}
 
-  function goTo(n) {
-    current = (n + total) % total;
-    track.style.transform = `translateX(-${current * 100}%)`;
-    dots.forEach((d, i) => d.classList.toggle("active", i === current));
+function buildTimeOptions() {
+  const isSunday =
+    bookDate.value && new Date(bookDate.value + "T00:00:00").getDay() === 0;
+  const first = isSunday ? 11 : 10;
+  const last = isSunday ? 17 : 19;
+  const previous = bookTime.value;
+
+  bookTime.innerHTML = '<option value="">Select a time</option>';
+  for (let h = first; h <= last; h++) {
+    const opt = document.createElement("option");
+    opt.textContent = formatHour(h);
+    bookTime.appendChild(opt);
   }
+  // keep the earlier choice if it is still available
+  if ([...bookTime.options].some((o) => o.value === previous)) {
+    bookTime.value = previous;
+  }
+}
 
-  document
-    .getElementById("nextBtn")
-    .addEventListener("click", () => goTo(current + 1));
-  document
-    .getElementById("prevBtn")
-    .addEventListener("click", () => goTo(current - 1));
-  dots.forEach((d) =>
-    d.addEventListener("click", () => goTo(+d.dataset.i)),
-  );
+// Block past dates
+const today = new Date();
+bookDate.min = [
+  today.getFullYear(),
+  String(today.getMonth() + 1).padStart(2, "0"),
+  String(today.getDate()).padStart(2, "0"),
+].join("-");
 
-  // Auto-advance every 5 s
-  setInterval(() => goTo(current + 1), 5000);
+bookDate.addEventListener("change", buildTimeOptions);
+buildTimeOptions();
 
-  // ── Smooth active nav link on scroll ──
-  const sections = document.querySelectorAll("section[id]");
-  const navAnchors = document.querySelectorAll(
-    ".nav-links a:not(.nav-btn)",
-  );
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((e) => {
-        if (e.isIntersecting) {
-          navAnchors.forEach((a) => {
-            a.style.color =
-              a.getAttribute("href") === "#" + e.target.id
-                ? "var(--gold)"
-                : "";
-          });
-        }
-      });
-    },
-    { threshold: 0.4 },
-  );
-  sections.forEach((s) => observer.observe(s));
+// ── WhatsApp Booking ──
+// Country code + number, digits only (no "+", spaces or dashes)
+const WHATSAPP_NUMBER = "254729696006";
 
-  // ── WhatsApp Booking ──
-const bookBtn = document.getElementById('bookBtn');
-
-bookBtn.addEventListener('click', function () {
-
-  const firstName = document.getElementById('firstName').value.trim();
-  const lastName  = document.getElementById('lastName').value.trim();
-  const phone     = document.getElementById('phone').value.trim();
-  const service   = document.getElementById('service').value;
-  const date      = document.getElementById('bookDate').value;
-  const notes     = document.getElementById('notes').value.trim();
+document.getElementById("bookBtn").addEventListener("click", () => {
+  const firstName = document.getElementById("firstName").value.trim();
+  const lastName = document.getElementById("lastName").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const service = document.getElementById("service").value;
+  const date = bookDate.value;
+  const time = bookTime.value;
+  const notes = document.getElementById("notes").value.trim();
 
   // Basic validation
-  if (!firstName || !service || !date) {
-    alert('Please fill in your name, service, and preferred date.');
+  if (!firstName || !service || !date || !time) {
+    alert("Please fill in your name, service, preferred date and time.");
     return;
   }
 
-  const message =
-`Hello Urban Beauty Spa! I'd like to book an appointment.
+  const message = `Hello Urban Beauty Spa! I'd like to book an appointment.
 
 Name: ${firstName} ${lastName}
-Phone: ${phone}
+Phone: ${phone || "Not provided"}
 Service: ${service}
 Date: ${date}
-Notes: ${notes || 'None'}
+Time: ${time}
+Notes: ${notes || "None"}
 
 Please confirm my booking. Thank you!`;
 
-  // ── REPLACE with your number (country code + number, no + or spaces) ──
-  const yourNumber = '+254729696006';
+  window.open(
+    `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
+    "_blank"
+  );
+});
 
-  window.open(`https://wa.me/${yourNumber}?text=${encodeURIComponent(message)}`, '_blank');
+// ── Contact form: opens the visitor's email app ──
+document.getElementById("sendBtn").addEventListener("click", () => {
+  const name = document.getElementById("cName").value.trim();
+  const email = document.getElementById("cEmail").value.trim();
+  const subject = document.getElementById("cSubject").value.trim();
+  const message = document.getElementById("cMessage").value.trim();
+
+  if (!name || !message) {
+    alert("Please add your name and a message.");
+    return;
+  }
+
+  const body = `${message}\n\n— ${name}${email ? " (" + email + ")" : ""}`;
+  window.location.href =
+    "mailto:urbanspa@gmail.com?subject=" +
+    encodeURIComponent(subject || "Enquiry from website") +
+    "&body=" +
+    encodeURIComponent(body);
 });
